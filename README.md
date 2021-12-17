@@ -49,13 +49,18 @@ En cas de souci, vous pouvez faire appel à l'aide avec la commande suivante:
 
 ### 🚀 Exécution du server
 
-Lors du démarrage du serveur, celui-ci se mettra en mode d'écoute par défaut. 
 Pour déchiffrer les fichiers d'une machine, il faut entrer :
  - l'adresse ipv4 de la machine visée
  - la clef et le vecteur d'initialisation correspondant à la machine
 
 ```
 ./server -a {adresse ip v4 visée} -k {cléf de chiffrement} -v {vecteur d'initialisation}
+```
+
+Pour lancer l'écoute, et ainsi récolter une potentiel cléf de chiffrement et son vecteur il faut entrer la commande d'écoute.
+
+```
+./server -l
 ```
 
 En cas de souci, vous pouvez faire appel à l'aide avec la commande suivante:
