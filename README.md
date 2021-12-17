@@ -12,7 +12,7 @@ Fonctionnalités du logiciel :
  - chiffrement en AES-256-CBC
  - chiffrement des fichiers détectés dans l'arborescence
  - envois de la cléf à un serveur
- - déchiffrement des données si le cléf et le vecteur d'initialisation sont donnés
+ - déchiffrement des données si la cléf et le vecteur d'initialisation sont donnés
 
 ## Exécution
 Il est fortement conseillé d'utiliser une machine virtuelle pour l'utilisation du logiciel. Veuillez également preter attention au fait que si il est lancé sans être relié au serveur, vous ne pourrez pas récuppérer la cléf de cryptage et le vecteur d'initialisation. Vos fichiers resteront alors chiffrés à jamais.
