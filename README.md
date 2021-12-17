@@ -39,7 +39,7 @@ Au déchiffrement (en mode manuel) :
 ./ransom -d -k {cléf de chiffrement} -v {vecteur d'initialisation}
 ```
 
-Si le déchiffrement automatique, la manipulation se trouve côté serveur.
+Si le déchiffrement est automatique, la manipulation se trouve côté serveur.
 
 En cas de souci, vous pouvez faire appel à l'aide avec la commande suivante:
 
